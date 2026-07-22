@@ -41,9 +41,11 @@
             background-color: var(--bg-color);
             background-image: radial-gradient(circle at 50% 0%, #1e3a5f 0%, var(--bg-color) 70%);
             color: var(--text-main);
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden; /* Enforce strictly no scrolling */
+            min-height: 100vh;
+            min-height: 100dvh;
+            width: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -52,6 +54,7 @@
         /* --- Header --- */
         header {
             height: 10vh;
+            height: 10dvh;
             width: 100%;
             display: flex;
             justify-content: center;
@@ -70,7 +73,7 @@
 
         /* --- Setup Screen --- */
         #setup-container {
-            position: absolute;
+            position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
@@ -155,6 +158,7 @@
             flex-direction: column;
             width: 100%;
             height: 90vh;
+            height: 90dvh;
             align-items: center;
             justify-content: flex-start;
         }
@@ -167,7 +171,6 @@
             justify-content: center;
             align-items: center;
             padding: 10px;
-            /* Prevents iOS from scrolling when dragging on the grid */
             touch-action: none; 
         }
 
@@ -267,6 +270,7 @@
         /* --- Controls Area --- */
         #bottom-controls {
             height: 15vh;
+            height: 15dvh;
             width: 100%;
             display: flex;
             flex-direction: column;
@@ -360,6 +364,24 @@
         @keyframes popIn { 0% { opacity: 0; transform: scale(0.5); } 100% { opacity: 1; transform: scale(1); } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
+        /* --- Fixes for Mobile Devices --- */
+        @media (max-width: 768px) {
+            body {
+                padding-bottom: 30dvh; 
+            }
+            #game-container {
+                height: auto;
+                flex-grow: 1;
+            }
+            #board-wrapper {
+                height: 55dvh; 
+                flex-grow: 0; 
+            }
+            #bottom-controls {
+                height: auto;
+                padding-top: 15px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -418,7 +440,6 @@
         let isDrawing = false;
         let drawMode = 0; // 0=Clear, 1=Fill, 2=Cross
         let activeMobileTool = 1; // Default to fill for touch
-        let lastTouchedCell = null; // Cache to prevent redundant calculations on touchmove
 
         // Clue tracking for dynamic sizing
         let maxRowClues = 0;
@@ -449,7 +470,6 @@
                 generatePuzzle();
                 renderBoard();
                 
-                // Add resize listener to dynamically adapt to window changes
                 window.addEventListener('resize', calculateCellSize);
             }, 400);
         }
@@ -457,7 +477,7 @@
         function generatePuzzle() {
             solution = [];
             playerGrid = [];
-            const fillProbability = 0.6; // Medium-easy balance
+            const fillProbability = 0.6;
 
             for (let r = 0; r < size; r++) {
                 let solRow = [];
@@ -470,7 +490,6 @@
                 playerGrid.push(playerRow);
             }
 
-            // Fallback: prevent empty rows/cols
             for (let i = 0; i < size; i++) {
                 if (solution[i].every(cell => !cell)) solution[i][Math.floor(Math.random() * size)] = true;
                 let colEmpty = true;
@@ -544,7 +563,6 @@
             for (let r = 0; r < size; r++) {
                 const tr = document.createElement('tr');
                 
-                // Left Clues
                 let thClue = document.createElement('th');
                 thClue.className = 'clue-row';
                 if ((r + 1) % 5 === 0 && r !== size - 1) thClue.classList.add('thick-bottom');
@@ -558,7 +576,6 @@
                 thClue.appendChild(rowDiv);
                 tr.appendChild(thClue);
 
-                // Playable Cells
                 for (let c = 0; c < size; c++) {
                     let td = document.createElement('td');
                     td.className = 'cell';
@@ -578,19 +595,15 @@
 
         function calculateCellSize() {
             const wrapper = document.getElementById('board-wrapper');
-            // Allow some padding margin
             const availableWidth = wrapper.clientWidth - 20; 
             const availableHeight = wrapper.clientHeight - 20;
             
-            // Total grid units = playable size + space needed for clues
-            // We approximate clues taking ~1 cell space per clue number
             const totalColsUnits = size + (maxRowClues * 0.6); 
             const totalRowsUnits = size + (maxColClues * 0.6);
             
             let cellW = availableWidth / totalColsUnits;
             let cellH = availableHeight / totalRowsUnits;
             
-            // Limit max size to look good on desktop, let it shrink on mobile
             let finalSize = Math.floor(Math.min(cellW, cellH, 40)); 
             
             document.documentElement.style.setProperty('--cell-size', finalSize + 'px');
@@ -603,71 +616,71 @@
             table.addEventListener('mousedown', e => {
                 if (gameWon) return;
                 clearHighlights();
-                if (!e.target.classList.contains('cell')) return;
+                let cell = e.target.closest('.cell');
+                if (!cell) return;
                 
                 isDrawing = true;
-                let r = parseInt(e.target.dataset.r);
-                let c = parseInt(e.target.dataset.c);
+                let r = parseInt(cell.dataset.r);
+                let c = parseInt(cell.dataset.c);
                 let button = e.button; 
                 
                 let currentState = playerGrid[r][c];
                 
-                if (button === 0) { // Left click
+                if (button === 0) {
                     drawMode = (currentState === 1) ? 0 : 1;
-                } else if (button === 2) { // Right click
+                } else if (button === 2) {
                     drawMode = (currentState === 2) ? 0 : 2;
                 }
-                applyState(e.target, r, c, drawMode);
+                applyState(cell, r, c, drawMode);
             });
 
             table.addEventListener('mouseover', e => {
-                if (isDrawing && e.target.classList.contains('cell') && !gameWon) {
-                    let r = parseInt(e.target.dataset.r);
-                    let c = parseInt(e.target.dataset.c);
-                    applyState(e.target, r, c, drawMode);
+                if (isDrawing && !gameWon) {
+                    let cell = e.target.closest('.cell');
+                    if (cell) {
+                        let r = parseInt(cell.dataset.r);
+                        let c = parseInt(cell.dataset.c);
+                        applyState(cell, r, c, drawMode);
+                    }
                 }
             });
 
             window.addEventListener('mouseup', () => finishDrawing());
 
-            // --- Touch Events (Mobile) ---
+            // --- Robust Touch Events (Mobile) ---
             table.addEventListener('touchstart', e => {
                 if (gameWon) return;
                 clearHighlights();
                 let touch = e.touches[0];
                 let target = document.elementFromPoint(touch.clientX, touch.clientY);
+                let cell = target ? target.closest('.cell') : null;
                 
-                if (target && target.classList.contains('cell')) {
+                if (cell) {
                     isDrawing = true;
-                    lastTouchedCell = target;
-                    let r = parseInt(target.dataset.r);
-                    let c = parseInt(target.dataset.c);
+                    let r = parseInt(cell.dataset.r);
+                    let c = parseInt(cell.dataset.c);
                     
                     let currentState = playerGrid[r][c];
-                    // Uses the UI toggle for touch mode
                     drawMode = (currentState === activeMobileTool) ? 0 : activeMobileTool; 
                     
-                    applyState(target, r, c, drawMode);
+                    applyState(cell, r, c, drawMode);
                 }
-            });
+            }, { passive: true });
 
             table.addEventListener('touchmove', e => {
                 if (!isDrawing || gameWon) return;
                 let touch = e.touches[0];
                 let target = document.elementFromPoint(touch.clientX, touch.clientY);
+                let cell = target ? target.closest('.cell') : null;
                 
-                if (target && target.classList.contains('cell') && target !== lastTouchedCell) {
-                    lastTouchedCell = target;
-                    let r = parseInt(target.dataset.r);
-                    let c = parseInt(target.dataset.c);
-                    applyState(target, r, c, drawMode);
+                if (cell) {
+                    let r = parseInt(cell.dataset.r);
+                    let c = parseInt(cell.dataset.c);
+                    applyState(cell, r, c, drawMode);
                 }
-            });
+            }, { passive: true });
 
-            window.addEventListener('touchend', () => {
-                lastTouchedCell = null;
-                finishDrawing();
-            });
+            window.addEventListener('touchend', () => finishDrawing());
             window.addEventListener('touchcancel', () => finishDrawing());
         }
 
@@ -676,9 +689,6 @@
             cell.classList.remove('filled', 'crossed');
             if (state === 1) cell.classList.add('filled');
             if (state === 2) cell.classList.add('crossed');
-            
-            // Single tap win check
-            if (!isDrawing && !gameWon && checkWinCondition()) triggerWin();
         }
 
         function finishDrawing() {
