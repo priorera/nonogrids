@@ -80,7 +80,7 @@
             background: var(--surface-color);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            padding: 40px;
+            padding: 30px;
             border-radius: 20px;
             border: 1px solid var(--surface-border);
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
@@ -92,11 +92,11 @@
         }
 
         .setup-group {
-            margin: 25px 0;
+            margin: 20px 0;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
 
         label {
@@ -107,8 +107,8 @@
 
         input[type="number"] {
             width: 100px;
-            padding: 12px;
-            font-size: 1.5rem;
+            padding: 10px;
+            font-size: 1.4rem;
             text-align: center;
             background: rgba(0, 0, 0, 0.3);
             border: 2px solid var(--surface-border);
@@ -126,8 +126,8 @@
             background: var(--accent-gradient);
             color: white;
             border: none;
-            padding: 14px 30px;
-            font-size: 1.2rem;
+            padding: 12px 30px;
+            font-size: 1.1rem;
             font-weight: 600;
             border-radius: 30px;
             cursor: pointer;
@@ -144,13 +144,27 @@
             transform: translateY(1px);
         }
 
-        .instructions {
-            margin-top: 20px;
-            font-size: 0.9rem;
+        /* Scrollable Instructions Container */
+        .instructions-scroll-box {
+            margin-top: 15px;
+            max-height: 130px;
+            overflow-y: auto;
+            text-align: left;
+            font-size: 0.85rem;
             color: var(--text-muted);
-            line-height: 1.5;
+            line-height: 1.4;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            border: 1px solid var(--surface-border);
         }
-        .instructions span { color: var(--text-main); font-weight: 600; }
+        .instructions-scroll-box p {
+            margin-bottom: 8px;
+        }
+        .instructions-scroll-box span { 
+            color: var(--text-main); 
+            font-weight: 600; 
+        }
 
         /* --- Game Area --- */
         #game-container {
@@ -330,8 +344,8 @@
         .tool-btn.active#btn-fill { color: var(--cell-filled); }
         .tool-btn.active#btn-cross { color: var(--cell-crossed); }
 
-        /* --- Win Graphic --- */
-        #win-banner {
+        /* --- Win & Confirmation Graphics --- */
+        #win-banner, #confirm-banner {
             display: none;
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -344,20 +358,31 @@
             align-items: center;
             animation: fadeIn 0.4s ease forwards;
         }
-        #win-banner h2 {
-            font-size: clamp(3rem, 10vw, 6rem);
+        #win-banner h2, #confirm-banner h2 {
+            font-size: clamp(2.5rem, 8vw, 5rem);
             color: white;
             text-transform: uppercase;
-            letter-spacing: 5px;
+            letter-spacing: 4px;
             text-shadow: 0 0 20px rgba(56, 189, 248, 0.6), 0 0 40px rgba(56, 189, 248, 0.4);
             animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            text-align: center;
+            padding: 0 10px;
         }
-        #win-banner p {
-            font-size: 1.2rem;
+        #win-banner p, #confirm-banner p {
+            font-size: 1.1rem;
             color: var(--text-muted);
             margin-top: 10px;
+            margin-bottom: 20px;
             opacity: 0;
             animation: slideUp 0.5s 0.3s ease forwards;
+            text-align: center;
+            padding: 0 10px;
+        }
+        .banner-buttons {
+            display: flex;
+            gap: 15px;
+            opacity: 0;
+            animation: slideUp 0.5s 0.4s ease forwards;
         }
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -394,13 +419,17 @@
     <div id="setup-container">
         <h2>New Game</h2>
         <div class="setup-group">
-            <label for="board-size">Grid Size (5 - 35)</label>
-            <input type="number" id="board-size" min="5" max="35" value="10">
+            <label for="board-size">Grid Size (5 - 10)</label>
+            <input type="number" id="board-size" min="5" max="10" value="10">
         </div>
         <button class="primary-btn" onclick="startGame()">Generate Puzzle</button>
-        <div class="instructions">
-            <span>Desktop:</span> Left-Click (Fill) / Right-Click (X)<br>
-            <span>Mobile:</span> Use the tool selector below the grid to drag and paint.
+        
+        <!-- Scrollable Instructions Box -->
+        <div class="instructions-scroll-box">
+            <p><span>Desktop Controls:</span> Left-Click to Fill, Right-Click to Mark X.</p>
+            <p><span>Mobile Controls:</span> Use the tool selector below the grid to switch between Fill and Mark X. Tap or drag to paint cells seamlessly.</p>
+            <p><span>How to Play:</span> Each number represents a consecutive block of filled squares in that row or column. Separate different blocks by at least one empty cell.</p>
+            <p><span>Goal:</span> Fill all the target cells properly based on the numbering clues to solve the picture puzzle and win!</p>
         </div>
     </div>
 
@@ -411,6 +440,16 @@
             <div id="win-banner">
                 <h2>Solved!</h2>
                 <p>Perfect logic execution.</p>
+            </div>
+
+            <!-- New Game Confirmation Graphic -->
+            <div id="confirm-banner">
+                <h2>New Game?</h2>
+                <p>Your current progress will be lost.</p>
+                <div class="banner-buttons">
+                    <button class="primary-btn" onclick="executeNewGame()" style="width: auto; padding: 10px 20px; font-size: 1rem;">Yes</button>
+                    <button class="secondary-btn" onclick="closeConfirmBanner()">Resume</button>
+                </div>
             </div>
             
             <table id="nonogram-table"></table>
@@ -425,7 +464,7 @@
 
             <div class="action-buttons">
                 <button class="secondary-btn" onclick="doCheck()">Check Errors</button>
-                <button class="secondary-btn" onclick="location.reload()">New Game</button>
+                <button class="secondary-btn" onclick="confirmNewGame()">New Game</button>
             </div>
         </div>
     </div>
@@ -453,8 +492,8 @@
 
         function startGame() {
             let inputSize = parseInt(document.getElementById('board-size').value);
-            if (isNaN(inputSize) || inputSize < 5 || inputSize > 35) {
-                alert("Please enter a valid size between 5 and 35.");
+            if (isNaN(inputSize) || inputSize < 5 || inputSize > 10) {
+                alert("Please enter a valid size between 5 and 10 for optimal mobile gameplay.");
                 return;
             }
             size = inputSize;
@@ -472,6 +511,23 @@
                 
                 window.addEventListener('resize', calculateCellSize);
             }, 400);
+        }
+
+        function confirmNewGame() {
+            let hasProgress = playerGrid.some(row => row.some(cell => cell !== 0));
+            if (!gameWon && hasProgress) {
+                document.getElementById('confirm-banner').style.display = 'flex';
+            } else {
+                executeNewGame();
+            }
+        }
+
+        function closeConfirmBanner() {
+            document.getElementById('confirm-banner').style.display = 'none';
+        }
+
+        function executeNewGame() {
+            location.reload();
         }
 
         function generatePuzzle() {
@@ -650,7 +706,7 @@
             // --- Robust Touch Events (Mobile) ---
             table.addEventListener('touchstart', e => {
                 if (gameWon) return;
-                e.preventDefault(); // Prevents synthesized mouse events from overriding mobile touch state
+                e.preventDefault(); 
                 clearHighlights();
                 let touch = e.touches[0];
                 let target = document.elementFromPoint(touch.clientX, touch.clientY);
