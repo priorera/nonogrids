@@ -650,6 +650,7 @@
             // --- Robust Touch Events (Mobile) ---
             table.addEventListener('touchstart', e => {
                 if (gameWon) return;
+                e.preventDefault(); // Prevents synthesized mouse events from overriding mobile touch state
                 clearHighlights();
                 let touch = e.touches[0];
                 let target = document.elementFromPoint(touch.clientX, touch.clientY);
@@ -665,7 +666,7 @@
                     
                     applyState(cell, r, c, drawMode);
                 }
-            }, { passive: true });
+            });
 
             table.addEventListener('touchmove', e => {
                 if (!isDrawing || gameWon) return;
