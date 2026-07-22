@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nonogrids Premium</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Theme Variables */
+            --bg-color: #0b1120;
+            --surface-color: rgba(30, 41, 59, 0.7);
+            --surface-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent-glow: #38bdf8;
+            --accent-gradient: linear-gradient(135deg, #0284c7, #38bdf8);
+            
+            /* Grid Variables */
+            --cell-size: 25px; /* Dynamically overwritten by JS */
+            --cell-bg: rgba(255, 255, 255, 0.05);
+            --cell-hover: rgba(255, 255, 255, 0.15);
+            --cell-filled: #38bdf8;
+            --cell-crossed: #f43f5e;
+            
+            --grid-line-light: rgba(255, 255, 255, 0.1);
+            --grid-line-thick: #38bdf8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, #1e3a5f 0%, var(--bg-color) 70%);
+            color: var(--text-main);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden; /* Enforce strictly no scrolling */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* --- Header --- */
+        header {
+            height: 10vh;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        h1 {
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            font-weight: 800;
+            letter-spacing: 2px;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.3));
+        }
+
+        /* --- Setup Screen --- */
+        #setup-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--surface-color);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 40px;
+            border-radius: 20px;
+            border: 1px solid var(--surface-border);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            z-index: 20;
+            width: 90%;
+            max-width: 400px;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        .setup-group {
+            margin: 25px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        label {
+            font-weight: 400;
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        input[type="number"] {
+            width: 100px;
+            padding: 12px;
+            font-size: 1.5rem;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid var(--surface-border);
+            color: white;
+            border-radius: 12px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        input[type="number"]:focus {
+            border-color: var(--accent-glow);
+        }
+
+        button.primary-btn {
+            background: var(--accent-gradient);
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-family: inherit;
+            width: 100%;
+        }
+        button.primary-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(2, 132, 199, 0.6);
+        }
+        button.primary-btn:active {
+            transform: translateY(1px);
+        }
+
+        .instructions {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+        .instructions span { color: var(--text-main); font-weight: 600; }
+
+        /* --- Game Area --- */
+        #game-container {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+            height: 90vh;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        #board-wrapper {
+            position: relative;
+            flex-grow: 1;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            /* Prevents iOS from scrolling when dragging on the grid */
+            touch-action: none; 
+        }
+
+        table {
+            border-collapse: collapse;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(5px);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 2px solid var(--grid-line-thick);
+        }
+
+        th, td {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            padding: 0;
+            margin: 0;
+            text-align: center;
+            border: 1px solid var(--grid-line-light);
+        }
+
+        /* Clue Area Styling */
+        .clue-col {
+            vertical-align: bottom;
+            background: rgba(255, 255, 255, 0.03);
+            border-bottom: 2px solid var(--grid-line-thick);
+            font-size: calc(var(--cell-size) * 0.45);
+            font-weight: 600;
+            color: var(--text-main);
+            padding-bottom: 4px;
+        }
+        .clue-col div {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .clue-row {
+            text-align: right;
+            background: rgba(255, 255, 255, 0.03);
+            border-right: 2px solid var(--grid-line-thick);
+            font-size: calc(var(--cell-size) * 0.45);
+            font-weight: 600;
+            color: var(--text-main);
+            padding-right: 6px;
+        }
+        .clue-row div {
+            display: flex;
+            justify-content: flex-end;
+            gap: calc(var(--cell-size) * 0.2);
+        }
+
+        .corner { border: none; background: transparent; }
+
+        /* Playable Cells */
+        .cell {
+            background-color: var(--cell-bg);
+            cursor: pointer;
+            transition: background-color 0.1s;
+        }
+        .cell:hover { background-color: var(--cell-hover); }
+
+        /* Grid Divisions (5x5) */
+        .thick-right { border-right: 2px solid var(--grid-line-thick) !important; }
+        .thick-bottom { border-bottom: 2px solid var(--grid-line-thick) !important; }
+
+        /* States */
+        .cell.filled {
+            background-color: var(--cell-filled);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+        }
+        
+        .cell.crossed {
+            background-color: var(--cell-bg);
+            position: relative;
+        }
+        .cell.crossed::before {
+            content: "";
+            position: absolute;
+            top: 15%; left: 15%; right: 15%; bottom: 15%;
+            background: 
+                linear-gradient(to bottom right, transparent calc(50% - 1px), var(--cell-crossed) calc(50% - 1px), var(--cell-crossed) calc(50% + 1px), transparent calc(50% + 1px)),
+                linear-gradient(to top right, transparent calc(50% - 1px), var(--cell-crossed) calc(50% - 1px), var(--cell-crossed) calc(50% + 1px), transparent calc(50% + 1px));
+        }
+
+        /* Check Highlights (Thin Inner Border) */
+        .cell.highlight-correct {
+            box-shadow: inset 0 0 0 2px #4ade80, inset 0 0 10px rgba(74, 222, 128, 0.2) !important;
+        }
+        .cell.highlight-incorrect {
+            box-shadow: inset 0 0 0 2px #f87171, inset 0 0 10px rgba(248, 113, 113, 0.2) !important;
+        }
+
+        /* --- Controls Area --- */
+        #bottom-controls {
+            height: 15vh;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            padding-bottom: 20px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+        }
+
+        button.secondary-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid var(--surface-border);
+            padding: 10px 20px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 20px;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        button.secondary-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Mobile Drawing Toggle */
+        #mobile-tools {
+            display: flex;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 30px;
+            padding: 4px;
+            border: 1px solid var(--surface-border);
+        }
+        .tool-btn {
+            background: transparent;
+            color: var(--text-muted);
+            border: none;
+            padding: 8px 20px;
+            font-size: 1rem;
+            border-radius: 26px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .tool-btn.active {
+            background: var(--surface-color);
+            color: white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .tool-btn.active#btn-fill { color: var(--cell-filled); }
+        .tool-btn.active#btn-cross { color: var(--cell-crossed); }
+
+        /* --- Win Graphic --- */
+        #win-banner {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(11, 17, 32, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 100;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.4s ease forwards;
+        }
+        #win-banner h2 {
+            font-size: clamp(3rem, 10vw, 6rem);
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            text-shadow: 0 0 20px rgba(56, 189, 248, 0.6), 0 0 40px rgba(56, 189, 248, 0.4);
+            animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        #win-banner p {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            margin-top: 10px;
+            opacity: 0;
+            animation: slideUp 0.5s 0.3s ease forwards;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes popIn { 0% { opacity: 0; transform: scale(0.5); } 100% { opacity: 1; transform: scale(1); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Nonogrids</h1>
+    </header>
+
+    <!-- Setup Menu -->
+    <div id="setup-container">
+        <h2>New Game</h2>
+        <div class="setup-group">
+            <label for="board-size">Grid Size (5 - 35)</label>
+            <input type="number" id="board-size" min="5" max="35" value="10">
+        </div>
+        <button class="primary-btn" onclick="startGame()">Generate Puzzle</button>
+        <div class="instructions">
+            <span>Desktop:</span> Left-Click (Fill) / Right-Click (X)<br>
+            <span>Mobile:</span> Use the tool selector below the grid to drag and paint.
+        </div>
+    </div>
+
+    <!-- Main Game Area -->
+    <div id="game-container">
+        <div id="board-wrapper">
+            <!-- Win Graphic -->
+            <div id="win-banner">
+                <h2>Solved!</h2>
+                <p>Perfect logic execution.</p>
+            </div>
+            
+            <table id="nonogram-table"></table>
+        </div>
+
+        <div id="bottom-controls">
+            <!-- Mobile Draw Tools -->
+            <div id="mobile-tools">
+                <button class="tool-btn active" id="btn-fill" onclick="setMobileTool(1)">⬛ Fill</button>
+                <button class="tool-btn" id="btn-cross" onclick="setMobileTool(2)">❌ Mark X</button>
+            </div>
+
+            <div class="action-buttons">
+                <button class="secondary-btn" onclick="doCheck()">Check Errors</button>
+                <button class="secondary-btn" onclick="location.reload()">New Game</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let solution = [];
+        let playerGrid = [];
+        let size = 10;
+        let gameWon = false;
+
+        // Interaction state for dragging
+        let isDrawing = false;
+        let drawMode = 0; // 0=Clear, 1=Fill, 2=Cross
+        let activeMobileTool = 1; // Default to fill for touch
+        let lastTouchedCell = null; // Cache to prevent redundant calculations on touchmove
+
+        // Clue tracking for dynamic sizing
+        let maxRowClues = 0;
+        let maxColClues = 0;
+
+        function setMobileTool(toolMode) {
+            activeMobileTool = toolMode;
+            document.getElementById('btn-fill').classList.toggle('active', toolMode === 1);
+            document.getElementById('btn-cross').classList.toggle('active', toolMode === 2);
+        }
+
+        function startGame() {
+            let inputSize = parseInt(document.getElementById('board-size').value);
+            if (isNaN(inputSize) || inputSize < 5 || inputSize > 35) {
+                alert("Please enter a valid size between 5 and 35.");
+                return;
+            }
+            size = inputSize;
+            gameWon = false;
+            
+            document.getElementById('setup-container').style.opacity = '0';
+            document.getElementById('setup-container').style.transform = 'translate(-50%, -60%)';
+            
+            setTimeout(() => {
+                document.getElementById('setup-container').style.display = 'none';
+                document.getElementById('game-container').style.display = 'flex';
+                
+                generatePuzzle();
+                renderBoard();
+                
+                // Add resize listener to dynamically adapt to window changes
+                window.addEventListener('resize', calculateCellSize);
+            }, 400);
+        }
+
+        function generatePuzzle() {
+            solution = [];
+            playerGrid = [];
+            const fillProbability = 0.6; // Medium-easy balance
+
+            for (let r = 0; r < size; r++) {
+                let solRow = [];
+                let playerRow = [];
+                for (let c = 0; c < size; c++) {
+                    solRow.push(Math.random() < fillProbability);
+                    playerRow.push(0);
+                }
+                solution.push(solRow);
+                playerGrid.push(playerRow);
+            }
+
+            // Fallback: prevent empty rows/cols
+            for (let i = 0; i < size; i++) {
+                if (solution[i].every(cell => !cell)) solution[i][Math.floor(Math.random() * size)] = true;
+                let colEmpty = true;
+                for (let r = 0; r < size; r++) if (solution[r][i]) colEmpty = false;
+                if (colEmpty) solution[Math.floor(Math.random() * size)][i] = true;
+            }
+        }
+
+        function getClues(line) {
+            let clues = [];
+            let currentBlock = 0;
+            for (let i = 0; i < line.length; i++) {
+                if (line[i]) {
+                    currentBlock++;
+                } else {
+                    if (currentBlock > 0) {
+                        clues.push(currentBlock);
+                        currentBlock = 0;
+                    }
+                }
+            }
+            if (currentBlock > 0) clues.push(currentBlock);
+            if (clues.length === 0) clues.push(0);
+            return clues;
+        }
+
+        function renderBoard() {
+            const table = document.getElementById('nonogram-table');
+            table.innerHTML = '';
+
+            let rowClues = [];
+            let colClues = [];
+            maxRowClues = 0;
+            maxColClues = 0;
+            
+            for (let r = 0; r < size; r++) {
+                let clues = getClues(solution[r]);
+                rowClues.push(clues);
+                if (clues.length > maxRowClues) maxRowClues = clues.length;
+            }
+            
+            for (let c = 0; c < size; c++) {
+                let col = [];
+                for (let r = 0; r < size; r++) col.push(solution[r][c]);
+                let clues = getClues(col);
+                colClues.push(clues);
+                if (clues.length > maxColClues) maxColClues = clues.length;
+            }
+
+            // Create Top Clues
+            const topTr = document.createElement('tr');
+            topTr.appendChild(document.createElement('th')).className = 'corner';
+            
+            for (let c = 0; c < size; c++) {
+                let th = document.createElement('th');
+                th.className = 'clue-col';
+                if ((c + 1) % 5 === 0 && c !== size - 1) th.classList.add('thick-right');
+                
+                let clueDiv = document.createElement('div');
+                colClues[c].forEach(num => {
+                    let span = document.createElement('span');
+                    span.innerText = num;
+                    clueDiv.appendChild(span);
+                });
+                th.appendChild(clueDiv);
+                topTr.appendChild(th);
+            }
+            table.appendChild(topTr);
+
+            // Create Grid
+            for (let r = 0; r < size; r++) {
+                const tr = document.createElement('tr');
+                
+                // Left Clues
+                let thClue = document.createElement('th');
+                thClue.className = 'clue-row';
+                if ((r + 1) % 5 === 0 && r !== size - 1) thClue.classList.add('thick-bottom');
+                
+                let rowDiv = document.createElement('div');
+                rowClues[r].forEach(num => {
+                    let span = document.createElement('span');
+                    span.innerText = num;
+                    rowDiv.appendChild(span);
+                });
+                thClue.appendChild(rowDiv);
+                tr.appendChild(thClue);
+
+                // Playable Cells
+                for (let c = 0; c < size; c++) {
+                    let td = document.createElement('td');
+                    td.className = 'cell';
+                    if ((c + 1) % 5 === 0 && c !== size - 1) td.classList.add('thick-right');
+                    if ((r + 1) % 5 === 0 && r !== size - 1) td.classList.add('thick-bottom');
+
+                    td.dataset.r = r;
+                    td.dataset.c = c;
+                    tr.appendChild(td);
+                }
+                table.appendChild(tr);
+            }
+
+            calculateCellSize();
+            setupInteractions(table);
+        }
+
+        function calculateCellSize() {
+            const wrapper = document.getElementById('board-wrapper');
+            // Allow some padding margin
+            const availableWidth = wrapper.clientWidth - 20; 
+            const availableHeight = wrapper.clientHeight - 20;
+            
+            // Total grid units = playable size + space needed for clues
+            // We approximate clues taking ~1 cell space per clue number
+            const totalColsUnits = size + (maxRowClues * 0.6); 
+            const totalRowsUnits = size + (maxColClues * 0.6);
+            
+            let cellW = availableWidth / totalColsUnits;
+            let cellH = availableHeight / totalRowsUnits;
+            
+            // Limit max size to look good on desktop, let it shrink on mobile
+            let finalSize = Math.floor(Math.min(cellW, cellH, 40)); 
+            
+            document.documentElement.style.setProperty('--cell-size', finalSize + 'px');
+        }
+
+        function setupInteractions(table) {
+            table.addEventListener('contextmenu', e => e.preventDefault());
+
+            // --- Mouse Events (Desktop) ---
+            table.addEventListener('mousedown', e => {
+                if (gameWon) return;
+                clearHighlights();
+                if (!e.target.classList.contains('cell')) return;
+                
+                isDrawing = true;
+                let r = parseInt(e.target.dataset.r);
+                let c = parseInt(e.target.dataset.c);
+                let button = e.button; 
+                
+                let currentState = playerGrid[r][c];
+                
+                if (button === 0) { // Left click
+                    drawMode = (currentState === 1) ? 0 : 1;
+                } else if (button === 2) { // Right click
+                    drawMode = (currentState === 2) ? 0 : 2;
+                }
+                applyState(e.target, r, c, drawMode);
+            });
+
+            table.addEventListener('mouseover', e => {
+                if (isDrawing && e.target.classList.contains('cell') && !gameWon) {
+                    let r = parseInt(e.target.dataset.r);
+                    let c = parseInt(e.target.dataset.c);
+                    applyState(e.target, r, c, drawMode);
+                }
+            });
+
+            window.addEventListener('mouseup', () => finishDrawing());
+
+            // --- Touch Events (Mobile) ---
+            table.addEventListener('touchstart', e => {
+                if (gameWon) return;
+                clearHighlights();
+                let touch = e.touches[0];
+                let target = document.elementFromPoint(touch.clientX, touch.clientY);
+                
+                if (target && target.classList.contains('cell')) {
+                    isDrawing = true;
+                    lastTouchedCell = target;
+                    let r = parseInt(target.dataset.r);
+                    let c = parseInt(target.dataset.c);
+                    
+                    let currentState = playerGrid[r][c];
+                    // Uses the UI toggle for touch mode
+                    drawMode = (currentState === activeMobileTool) ? 0 : activeMobileTool; 
+                    
+                    applyState(target, r, c, drawMode);
+                }
+            });
+
+            table.addEventListener('touchmove', e => {
+                if (!isDrawing || gameWon) return;
+                let touch = e.touches[0];
+                let target = document.elementFromPoint(touch.clientX, touch.clientY);
+                
+                if (target && target.classList.contains('cell') && target !== lastTouchedCell) {
+                    lastTouchedCell = target;
+                    let r = parseInt(target.dataset.r);
+                    let c = parseInt(target.dataset.c);
+                    applyState(target, r, c, drawMode);
+                }
+            });
+
+            window.addEventListener('touchend', () => {
+                lastTouchedCell = null;
+                finishDrawing();
+            });
+            window.addEventListener('touchcancel', () => finishDrawing());
+        }
+
+        function applyState(cell, r, c, state) {
+            playerGrid[r][c] = state;
+            cell.classList.remove('filled', 'crossed');
+            if (state === 1) cell.classList.add('filled');
+            if (state === 2) cell.classList.add('crossed');
+            
+            // Single tap win check
+            if (!isDrawing && !gameWon && checkWinCondition()) triggerWin();
+        }
+
+        function finishDrawing() {
+            if (isDrawing) {
+                isDrawing = false;
+                if (!gameWon && checkWinCondition()) {
+                    triggerWin();
+                }
+            }
+        }
+
+        function doCheck() {
+            if (gameWon) return;
+            const table = document.getElementById('nonogram-table');
+            
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    let state = playerGrid[r][c];
+                    if (state !== 0) { 
+                        let cell = table.rows[r + 1].cells[c + 1]; 
+                        if (state === 1) { 
+                            if (solution[r][c]) cell.classList.add('highlight-correct');
+                            else cell.classList.add('highlight-incorrect');
+                        } else if (state === 2) { 
+                            if (!solution[r][c]) cell.classList.add('highlight-correct');
+                            else cell.classList.add('highlight-incorrect');
+                        }
+                    }
+                }
+            }
+        }
+
+        function clearHighlights() {
+            const highlightedCells = document.querySelectorAll('.highlight-correct, .highlight-incorrect');
+            highlightedCells.forEach(cell => {
+                cell.classList.remove('highlight-correct', 'highlight-incorrect');
+            });
+        }
+
+        function checkWinCondition() {
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    let shouldBeFilled = solution[r][c];
+                    let isFilled = (playerGrid[r][c] === 1);
+                    if (shouldBeFilled !== isFilled) return false; 
+                }
+            }
+            return true;
+        }
+
+        function triggerWin() {
+            gameWon = true;
+            document.getElementById('win-banner').style.display = 'flex';
+        }
+    </script>
+</body>
+</html>
